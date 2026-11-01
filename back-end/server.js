@@ -61,6 +61,25 @@ const notFound = (res, message = 'Recurso não encontrado') => res.status(404).j
 const serverError = (res, message = 'Erro interno do servidor') => res.status(500).json({ error: message });
 
 // ============================================
+// VALIDAÇÕES REUTILIZÁVEIS
+// ============================================
+
+// Valida username: 3-50 chars, alfanumérico + underscore
+const validateUsername = (username) => {
+  if (!username || typeof username !== 'string') {
+    return 'Username é obrigatório e deve ser uma string';
+  }
+  const trimmed = username.trim();
+  if (trimmed.length < 3 || trimmed.length > 50) {
+    return 'Username deve ter entre 3 e 50 caracteres';
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+    return 'Username deve conter apenas letras, números e underscore (_)';
+  }
+  return null; // válido
+};
+
+// ============================================
 // ROTAS
 // ============================================
 
@@ -69,7 +88,72 @@ app.get('/health', (req, res) => {
   ok(res, { status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// 8. GET /tasks - Lista todas as tasks (com join no user)
+// ============================================
+// ROTAS DE USUÁRIO
+// ============================================
+
+// 8. GET /users/:id - Busca usuário por ID
+app.get('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = Number(id);
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return badRequest(res, 'ID do usuário inválido');
+    }
+
+    const result = await pool.query(
+      'SELECT id, username, level, current_xp FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return notFound(res, 'Usuário não encontrado');
+    }
+
+    ok(res, result.rows[0]);
+  } catch (err) {
+    console.error('Erro GET /users/:id:', err);
+    serverError(res);
+  }
+});
+
+// 9. POST /users - Cria novo usuário
+app.post('/users', async (req, res) => {
+  try {
+    const { username } = req.body;
+
+    // Validação
+    const validationError = validateUsername(username);
+    if (validationError) {
+      return badRequest(res, validationError);
+    }
+
+    const trimmedUsername = username.trim();
+
+    // Insere usuário (level e current_xp têm DEFAULT no banco)
+    const result = await pool.query(
+      `INSERT INTO users (username) VALUES ($1)
+       RETURNING id, username, level, current_xp`,
+      [trimmedUsername]
+    );
+
+    created(res, result.rows[0]);
+  } catch (err) {
+    console.error('Erro POST /users:', err);
+    // Violação de UNIQUE constraint (username duplicado)
+    if (err.code === '23505') {
+      return badRequest(res, 'Username já existe');
+    }
+    serverError(res);
+  }
+});
+
+// ============================================
+// ROTAS DE TASKS
+// ============================================
+
+// 10. GET /tasks - Lista todas as tasks (com join no user)
 app.get('/tasks', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -90,7 +174,7 @@ app.get('/tasks', async (req, res) => {
   }
 });
 
-// 9. POST /tasks - Cria nova task
+// 11. POST /tasks - Cria nova task
 app.post('/tasks', async (req, res) => {
   try {
     const { title, user_id } = req.body;
@@ -129,7 +213,7 @@ app.post('/tasks', async (req, res) => {
   }
 });
 
-// 10. PATCH /tasks/:id/status - Atualiza status + lógica XP (transação)
+// 12. PATCH /tasks/:id/status - Atualiza status + lógica XP (transação)
 app.patch('/tasks/:id/status', async (req, res) => {
   const client = await pool.connect(); // Pega conexão dedicada para transação
   
@@ -257,7 +341,7 @@ app.patch('/tasks/:id/status', async (req, res) => {
   }
 });
 
-// 11. Iniciar servidor
+// 13. Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
 });
