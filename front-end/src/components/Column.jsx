@@ -3,7 +3,6 @@
 // ============================================
 
 import { useDroppable } from '@dnd-kit/core'
-import { useSortable } from '@dnd-kit/sortable'
 import TaskCard from './TaskCard'
 
 // Configuração das colunas
@@ -21,8 +20,7 @@ function Column({ status, tasks, onMoveTask }) {
   const {
     setNodeRef,
     isOver,              // True quando algo está sendo arrastado POR CIMA
-    overId,              // ID do item que está por cima (se houver)
-  } = useDroppable({ id: status })  // ID único = status da coluna
+  } = useDroppable({ id: status })  // ID único = status da coluna (string)
 
   // 2. ESTILO DINÂMICO — Feedback visual quando arrastando por cima
   const columnStyle = {
@@ -58,14 +56,9 @@ function Column({ status, tasks, onMoveTask }) {
             <span className="empty-hint">Ou clique em "+" para criar</span>
           </div>
         ) : (
-          // Lista de cards (usa useSortable para ordenação dentro da coluna)
-          columnTasks.map((task, index) => (
-            // Key é obrigatória em listas React
-            <TaskCard
-              key={task.id}
-              task={task}
-              onMove={onMoveTask}  // Passamos a função de mover
-            />
+          // Lista de cards
+          columnTasks.map((task) => (
+            <TaskCard key={String(task.id)} task={task} />
           ))
         )}
       </div>

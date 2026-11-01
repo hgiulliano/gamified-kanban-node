@@ -7,7 +7,7 @@ import { CSS } from '@dnd-kit/utilities'
 
 function TaskCard({ task }) {
   // 1. HOOK useSortable — Torna o elemento arrastável
-  // Retorna: attributes (props para o elemento), listeners (eventos), setNodeRef (ref para o DOM), transform (CSS transform)
+  // IMPORTANTE: @dnd-kit exige ID como STRING
   const {
     attributes,
     listeners,
@@ -15,7 +15,7 @@ function TaskCard({ task }) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id })
+  } = useSortable({ id: String(task.id) })
 
   // 2. ESTILO DINÂMICO PARA ANIMAÇÃO DE ARRASTE
   const style = {

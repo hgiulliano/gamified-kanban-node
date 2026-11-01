@@ -35,8 +35,9 @@ function Board() {
     
     if (!over) return  // Soltou fora de zona válida
 
-    const taskId = active.id
-    const newStatus = over.id  // ID da coluna = status
+    // @dnd-kit usa IDs string - converter para number para API
+    const taskId = Number(active.id)
+    const newStatus = over.id  // ID da coluna = status (string: 'TODO', 'DOING', etc.)
 
     // Evita mover para mesmo status
     const task = tasks.find(t => t.id === taskId)
@@ -81,8 +82,11 @@ function Board() {
     )
   }
 
+  // 7. IDs STRING PARA @dnd-kit (obrigatório)
+  const sortableIds = tasks.map(t => String(t.id))
+
   return (
-    // 7. DndContext — PROVIDER DO DRAG-AND-DROP
+    // 8. DndContext — PROVIDER DO DRAG-AND-DROP
     <DndContext
       sensors={sensors}                    // Sensores configurados
       collisionDetection={closestCenter}   // Algoritmo: centro mais próximo
@@ -90,7 +94,7 @@ function Board() {
     >
       {/* SortableContext — Permite reordenar DENTRO da coluna */}
       <SortableContext
-        items={tasks.map(t => t.id)}              // IDs de todos os items
+        items={sortableIds}                // IDs como STRING (obrigatório @dnd-kit)
         strategy={verticalListSortingStrategy}    // Estratégia lista vertical
       >
         <div className="kanban-board" role="region" aria-label="Quadro Kanban">
