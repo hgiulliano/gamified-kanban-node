@@ -23,17 +23,20 @@ Cada task paga XP **uma única vez**. Não dá para "farmar" XP movendo a mesma 
 
 ## O que o app faz
 
-### Board principal
-
 O quadro mostra apenas as tasks do usuário selecionado na sidebar. Cada coluna tem cor própria e o usuário ativo aparece no cabeçalho.
-
-![Board principal — tarefas filtradas pelo usuário selecionado](docs/screenshots/01-board-principal.png)
-
-### Menu de ações
 
 Cada task tem um botão "⋮" que abre um menu para editar o título, mudar o status ou excluir. O menu é renderizado em um portal fora da coluna, então nunca fica escondido atrás dos cards.
 
-![Menu de ações aberto sobre uma task](docs/screenshots/02-menu-aberto.png)
+<div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin:24px 0;">
+  <div style="max-width:48%;">
+    <img src="docs/screenshots/01-board-principal.png" alt="Board principal" style="width:100%; border-radius:8px; border:1px solid #e2e8f0;" />
+    <p style="text-align:center; font-size:0.9rem; color:#64748b; margin-top:8px;">Board principal — tarefas filtradas pelo usuário selecionado</p>
+  </div>
+  <div style="max-width:48%;">
+    <img src="docs/screenshots/02-menu-aberto.png" alt="Menu de ações" style="width:100%; border-radius:8px; border:1px solid #e2e8f0;" />
+    <p style="text-align:center; font-size:0.9rem; color:#64748b; margin-top:8px;">Menu de ações aberto sobre uma task</p>
+  </div>
+</div>
 
 ---
 
