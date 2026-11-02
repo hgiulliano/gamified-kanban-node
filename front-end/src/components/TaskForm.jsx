@@ -5,111 +5,72 @@
 import { useState } from 'react'
 import UserSelect from './UserSelect'
 
-function TaskForm({ onSubmit, users }) {
-  // Estado local do formulário
+function TaskForm({ users, onSubmit }) {
   const [title, setTitle] = useState('')
-  const [userId, setUserId] = useState(null)
+  const [userId, setUserId] = useState(users[0]?.id || null)
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState('')
 
-  // Validação em tempo real
-  const titleError = title.length > 0 && title.length > 255 
-    ? 'Máximo 255 caracteres' 
-    : null
-  
-  const userError = !userId && users.length > 0 
-    ? 'Selecione um usuário' 
-    : null
-
+  const charCount = title.length
   const isValid = title.trim().length > 0 && title.length <= 255 && userId !== null
 
-  // Handler de submit
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
     if (!isValid) {
-      setError('Preencha todos os campos corretamente')
+      setError('Preencha todos os campos')
       return
     }
-
     try {
       setSubmitting(true)
-      setError(null)
+      setError('')
       await onSubmit(title.trim(), userId)
-      
-      // Limpa formulário após sucesso
       setTitle('')
-      setUserId(null)
+      setUserId(users[0]?.id || null)
     } catch (err) {
-      // Erro já vem da API via contexto
       setError(err.message)
     } finally {
       setSubmitting(false)
     }
   }
 
-  // Contador de caracteres
-  const charCount = title.length
-
   return (
     <form onSubmit={handleSubmit} className="task-form" noValidate>
       <div className="form-row">
-        {/* Input do título */}
         <div className="form-field">
-          <label htmlFor="task-title" className="form-label">
-            Nova Task
-          </label>
+          <label htmlFor="task-title" className="form-label">Nova Task</label>
           <div className="input-wrapper">
             <input
               type="text"
               id="task-title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => { setTitle(e.target.value); setError(''); }}
               placeholder="O que precisa ser feito?"
               maxLength={255}
               disabled={submitting}
-              className={`form-input ${titleError ? 'error' : ''} ${!title && error ? 'error' : ''}`}
-              aria-describedby={titleError ? 'title-error' : charCount > 0 ? 'title-count' : undefined}
-              aria-invalid={!!titleError || (!title && error)}
+              className={`form-input ${charCount > 255 ? 'error' : ''}`}
+              aria-describedby={charCount > 0 ? 'char-count' : undefined}
             />
-            {/* Contador de caracteres */}
             <span 
-              id="title-count" 
-              className={`char-count ${titleError ? 'error' : ''}`}
-              aria-live="polite"
+              id="char-count" 
+              className={`char-count ${charCount > 240 ? 'warning' : ''} ${charCount > 255 ? 'error' : ''}`}
             >
               {charCount}/255
             </span>
-            {titleError && (
-              <span id="title-error" className="field-error" role="alert">
-                {titleError}
-              </span>
-            )}
           </div>
         </div>
 
-        {/* Dropdown de usuário */}
         <div className="form-field">
-          <label htmlFor="task-user" className="form-label">
-            Responsável
-          </label>
+          <label htmlFor="task-user" className="form-label">Responsável</label>
           <UserSelect
             users={users}
             selectedId={userId}
             onChange={setUserId}
-            placeholder="Quem fará esta task?"
-            required
-            className={userError ? 'error' : ''}
+            placeholder="Selecione..."
+            className={!userId && users.length > 0 ? 'error' : ''}
           />
-          {userError && (
-            <span className="field-error" role="alert">
-              {userError}
-            </span>
-          )}
         </div>
       </div>
 
-      {/* Botão de submit + erro global */}
       <div className="form-actions">
         <button
           type="submit"
@@ -119,25 +80,22 @@ function TaskForm({ onSubmit, users }) {
         >
           {submitting ? (
             <>
-              <span className="btn-spinner" aria-hidden="true"></span>
+              <span className="btn-spinner" aria-hidden="true" />
               Criando...
             </>
           ) : (
-            '➕ Adicionar Task'
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Nova Task
+            </>
           )}
         </button>
 
-        {error && (
-          <div className="form-error" role="alert">
-            {error}
-          </div>
-        )}
-
-        {users.length === 0 && (
-          <p className="form-hint">
-            👆 Cadastre um usuário primeiro para criar tasks
-          </p>
-        )}
+        {error && <div className="form-error" role="alert">{error}</div>}
+        {users.length === 0 && <p className="form-hint">Crie um usuário primeiro</p>}
       </div>
     </form>
   )

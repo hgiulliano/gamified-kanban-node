@@ -1,61 +1,36 @@
 // ============================================
-// USER SELECT — Dropdown para escolher usuário
+// USER SELECT — Dropdown de usuários
 // ============================================
 
-function UserSelect({ 
-  users,           // Array de users: [{ id, username, level, current_xp }, ...]
-  selectedId,      // ID do user selecionado
-  onChange,        // Função (userId) => void
-  placeholder = 'Selecione um usuário...',
-  disabled = false,
-  required = true,
-  className = '',
-}) {
-  // Se não há usuários, mostra mensagem
+function UserSelect({ users, selectedId, onChange, placeholder = 'Selecione...', className = '' }) {
   if (!users || users.length === 0) {
     return (
-      <select 
-        disabled 
-        className={`user-select ${className}`}
-        aria-label={placeholder}
-      >
-        <option value="">Nenhum usuário cadastrado</option>
+      <select disabled className={`user-select ${className}`} aria-label={placeholder}>
+        <option value="">Nenhum usuário</option>
       </select>
     )
   }
 
   return (
     <div className="user-select-wrapper">
-      <label htmlFor={`user-select-${selectedId || 'new'}`} className="visually-hidden">
-        {placeholder}
-      </label>
-      
       <select
-        id={`user-select-${selectedId || 'new'}`}
         value={selectedId || ''}
-        onChange={(e) => onChange(Number(e.target.value) || null)}
-        disabled={disabled}
-        required={required}
+        onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
         className={`user-select ${className}`}
         aria-label={placeholder}
       >
-        <option value="" disabled>
-          {placeholder}
-        </option>
-        
+        <option value="" disabled>{placeholder}</option>
         {users.map(user => (
-          <option 
-            key={user.id} 
-            value={user.id}
-            // Mostra level e XP no dropdown para contexto
-          >
-            {user.username} (Nv.{user.level} • {user.current_xp} XP)
+          <option key={user.id} value={user.id}>
+            {user.username} (Nv.{user.level})
           </option>
         ))}
       </select>
-      
-      {/* Ícone decorativo */}
-      <span className="select-icon" aria-hidden="true">👤</span>
+      <span className="select-icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </span>
     </div>
   )
 }

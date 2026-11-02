@@ -341,7 +341,86 @@ app.patch('/tasks/:id/status', async (req, res) => {
   }
 });
 
-// 13. Iniciar servidor
+// ============================================
+// NOVAS ROTAS DE TASKS (Editar/Excluir)
+// ============================================
+
+// 13. PATCH /tasks/:id - Atualiza task (título, etc.)
+app.patch('/tasks/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title } = req.body;
+
+    const taskId = Number(id);
+    if (!Number.isInteger(taskId) || taskId <= 0) {
+      return badRequest(res, 'ID da task inválido');
+    }
+
+    // Verifica se task existe
+    const taskCheck = await pool.query('SELECT id FROM tasks WHERE id = $1', [taskId]);
+    if (taskCheck.rows.length === 0) {
+      return notFound(res, 'Task não encontrada');
+    }
+
+    // Validações
+    if (title !== undefined) {
+      if (!title || typeof title !== 'string' || title.trim() === '') {
+        return badRequest(res, 'Title é obrigatório e não pode ser vazio');
+      }
+      if (title.length > 255) {
+        return badRequest(res, 'Title deve ter no máximo 255 caracteres');
+      }
+    }
+
+    // Atualiza
+    const result = await pool.query(
+      `UPDATE tasks SET title = COALESCE($1, title) WHERE id = $2
+       RETURNING id, title, status, user_id, created_at`,
+      [title?.trim(), taskId]
+    );
+
+    // Busca com join para retornar dados completos
+    const updated = await pool.query(
+      `SELECT t.id, t.title, t.status, t.user_id, t.created_at,
+              u.username, u.level, u.current_xp
+       FROM tasks t
+       JOIN users u ON t.user_id = u.id
+       WHERE t.id = $1`,
+      [taskId]
+    );
+
+    ok(res, updated.rows[0]);
+  } catch (err) {
+    console.error('Erro PATCH /tasks/:id:', err);
+    serverError(res);
+  }
+});
+
+// 14. DELETE /tasks/:id - Exclui task
+app.delete('/tasks/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const taskId = Number(id);
+
+    if (!Number.isInteger(taskId) || taskId <= 0) {
+      return badRequest(res, 'ID da task inválido');
+    }
+
+    // Verifica se existe
+    const taskCheck = await pool.query('SELECT id FROM tasks WHERE id = $1', [taskId]);
+    if (taskCheck.rows.length === 0) {
+      return notFound(res, 'Task não encontrada');
+    }
+
+    await pool.query('DELETE FROM tasks WHERE id = $1', [taskId]);
+    ok(res, { message: 'Task excluída com sucesso', id: taskId });
+  } catch (err) {
+    console.error('Erro DELETE /tasks/:id:', err);
+    serverError(res);
+  }
+});
+
+// 15. Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
 });

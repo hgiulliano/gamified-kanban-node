@@ -1,13 +1,20 @@
 // ============================================
-// TASK CARD — Card arrastável com @dnd-kit
+// TASK CARD — Card arrastável com ações (editar/excluir)
 // ============================================
 
+import { useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import TaskMenu from './TaskMenu'
 
-function TaskCard({ task }) {
-  // 1. HOOK useSortable — Torna o elemento arrastável
-  // IMPORTANTE: @dnd-kit exige ID como STRING
+const STATUS_LABELS = {
+  TODO: 'A Fazer',
+  DOING: 'Fazendo',
+  REVIEW: 'Revisão',
+  READY: 'Concluída',
+}
+
+function TaskCard({ task, allTasks, users }) {
   const {
     attributes,
     listeners,
@@ -17,68 +24,102 @@ function TaskCard({ task }) {
     isDragging,
   } = useSortable({ id: String(task.id) })
 
-  // 2. ESTILO DINÂMICO PARA ANIMAÇÃO DE ARRASTE
   const style = {
-    transform: CSS.Transform.toString(transform), // Converte matrix para string CSS
-    transition,                                    // Transição suave ao soltar
-    opacity: isDragging ? 0.5 : 1,                // Visual feedback ao arrastar
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
   }
 
-  // 3. CORES POR STATUS
-  const statusColors = {
-    TODO: '#6b7280',      // Cinza
-    DOING: '#3b82f6',     // Azul
-    REVIEW: '#f59e0b',    // Amarelo
-    READY: '#10b981',     // Verde
-  }
-
-  const statusLabels = {
-    TODO: '📝 A Fazer',
-    DOING: '⚡ Fazendo',
-    REVIEW: '👀 Revisão',
-    READY: '✅ Pronto',
-  }
+  // User da task
+  const user = users.find(u => u.id === task.user_id)
 
   return (
-    // 4. ELEMENTO RAIZ — Precisa de ref + attributes + listeners + style
     <div
-      ref={setNodeRef}                    // Conecta o DOM node ao dnd-kit
-      {...attributes}                     // Espalha atributos de acessibilidade (role, aria-*)
-      {...listeners}                      // Conecta eventos de mouse/touch
-      style={style}                       // Aplica transform/transition/opacity
-      className="task-card"
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      style={style}
+      className={`task-card ${isDragging ? 'dragging' : ''}`}
       data-status={task.status}
+      role="listitem"
+      aria-label={`Task: ${task.title}, Status: ${STATUS_LABELS[task.status]}`}
     >
-      {/* Handle de arraste (área para pegar) — opcional, mas bom para UX */}
-      <div
+      {/* Drag Handle */}
+      <button
         className="drag-handle"
-        {...attributes}                   // Mesmo attributes no handle
+        {...attributes}
         {...listeners}
         aria-label="Arraste para mover"
+        type="button"
       >
-        ⋮⋮
-      </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <circle cx="9" cy="6" r="1.5" />
+          <circle cx="15" cy="6" r="1.5" />
+          <circle cx="9" cy="12" r="1.5" />
+          <circle cx="15" cy="12" r="1.5" />
+          <circle cx="9" cy="18" r="1.5" />
+          <circle cx="15" cy="18" r="1.5" />
+        </svg>
+      </button>
 
-      {/* Conteúdo do card */}
+      {/* Menu de ações (editar/excluir) */}
+      <TaskMenu task={task} allTasks={allTasks} users={users} />
+
+      {/* Conteúdo */}
       <div className="task-content">
         <h3 className="task-title">{task.title}</h3>
-        
-        {/* Badge de status colorido */}
+
+        {/* Badge de status */}
         <span 
-          className="task-status-badge"
-          style={{ backgroundColor: statusColors[task.status] }}
+          className={`task-badge ${task.status.toLowerCase()}`}
+          style={{ backgroundColor: `var(--color-${task.status.toLowerCase()}-bg)`, color: `var(--color-${task.status.toLowerCase()})` }}
         >
-          {statusLabels[task.status]}
+          {STATUS_LABELS[task.status]}
         </span>
 
-        {/* Info do usuário + XP */}
+        {/* Meta: usuário + data */}
         <div className="task-meta">
-          <span className="task-user">👤 {task.username}</span>
-          <span className="task-xp">⭐ Nv.{task.level} • {task.current_xp} XP</span>
+          {user && (
+            <span className="task-user" title={`Nv.${user.level} • ${user.current_xp} XP`}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              {user.username}
+            </span>
+          )}
+          <time className="task-date" dateTime={task.created_at}>
+            {formatRelativeDate(task.created_at)}
+          </time>
         </div>
+
+        {/* XP ganho se for READY */}
+        {task.status === 'READY' && (
+          <div className="task-xp-earned">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
+            </svg>
+            <span>+50 XP ao concluir</span>
+          </div>
+        )}
       </div>
     </div>
   )
+}
+
+function formatRelativeDate(iso) {
+  const date = new Date(iso)
+  const now = new Date()
+  const diffMs = now - date
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  
+  if (diffDays === 0) return 'Hoje'
+  if (diffDays === 1) return 'Ontem'
+  if (diffDays < 7) return `${diffDays}d atrás`
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}sem atrás`
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 }
 
 export default TaskCard

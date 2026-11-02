@@ -1,64 +1,57 @@
 // ============================================
-// COLUMN — Coluna do Kanban (Droppable)
+// COLUMN — Coluna do Kanban (Drop Zone)
 // ============================================
 
 import { useDroppable } from '@dnd-kit/core'
 import TaskCard from './TaskCard'
 
-// Configuração das colunas
-const COLUMN_CONFIG = {
-  TODO: { label: '📝 A Fazer', color: '#6b7280', order: 0 },
-  DOING: { label: '⚡ Fazendo', color: '#3b82f6', order: 1 },
-  REVIEW: { label: '👀 Revisão', color: '#f59e0b', order: 2 },
-  READY: { label: '✅ Pronto', color: '#10b981', order: 3 },
-}
-
-function Column({ status, tasks, onMoveTask }) {
-  const config = COLUMN_CONFIG[status]
-
-  // 1. HOOK useDroppable — Torna a área um "drop zone"
+function Column({ status, config, tasks, allTasks, users }) {
   const {
     setNodeRef,
-    isOver,              // True quando algo está sendo arrastado POR CIMA
-  } = useDroppable({ id: status })  // ID único = status da coluna (string)
+    isOver,
+  } = useDroppable({ id: status })
 
-  // 2. ESTILO DINÂMICO — Feedback visual quando arrastando por cima
+  // Estilo dinâmico quando arrastando por cima
   const columnStyle = {
-    backgroundColor: isOver ? `${config.color}15` : 'transparent', // 15 = 8% opacity
-    borderColor: isOver ? config.color : '#e5e7eb',
+    backgroundColor: isOver ? 'var(--col-bg)' : 'transparent',
+    borderColor: isOver ? 'var(--col-color)' : 'var(--color-border)',
   }
 
-  // 3. FILTRA TASKS DESTA COLUNA + ORDENA POR CRIAÇÃO (mais novas primeiro)
-  const columnTasks = tasks
-    .filter(task => task.status === status)
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-
   return (
-    // 4. ELEMENTO RAIZ DA COLUNA
     <div
-      ref={setNodeRef}              // Conecta DOM node ao dnd-kit
+      ref={setNodeRef}
       className="kanban-column"
       style={columnStyle}
       data-status={status}
+      data-over={isOver}
     >
       {/* Header da coluna */}
-      <div className="column-header" style={{ borderColor: config.color }}>
-        <h2 className="column-title">{config.label}</h2>
-        <span className="column-count">{columnTasks.length}</span>
+      <div className="column-header">
+        <div className="column-title">
+          <span className="column-icon" aria-hidden="true">{config.icon}</span>
+          <span>{config.label}</span>
+        </div>
+        <span className="column-count">{tasks.length}</span>
       </div>
 
-      {/* Área onde cards são dropados */}
+      {/* Drop Zone */}
       <div className="column-dropzone" role="list" aria-label={config.label}>
-        {columnTasks.length === 0 ? (
-          // Estado vazio
-          <div className="column-empty" style={{ borderColor: config.color }}>
-            <p>Arraste uma task para cá</p>
-            <span className="empty-hint">Ou clique em "+" para criar</span>
+        {tasks.length === 0 ? (
+          <div className="column-empty">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <p>Nenhuma task</p>
+            <span>Arraste uma task para cá</span>
           </div>
         ) : (
-          // Lista de cards
-          columnTasks.map((task) => (
-            <TaskCard key={String(task.id)} task={task} />
+          tasks.map(task => (
+            <TaskCard
+              key={String(task.id)}
+              task={task}
+              allTasks={allTasks}
+              users={users}
+            />
           ))
         )}
       </div>
