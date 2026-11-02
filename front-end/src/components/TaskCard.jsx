@@ -92,15 +92,21 @@ function TaskCard({ task, users }) {
           </time>
         </div>
 
-        {/* XP ganho se for READY */}
+        {/* XP: mostra se a recompensa dessa task já foi paga */}
         {task.status === 'READY' && (
-          <div className="task-xp-earned">
+          <div className={`task-xp-earned ${task.xp_awarded ? 'credited' : ''}`}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
+              {task.xp_awarded ? (
+                <polyline points="20 6 9 17 4 12" />
+              ) : (
+                <>
+                  <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                  <path d="M2 17l10 5 10-5" />
+                  <path d="M2 12l10 5 10-5" />
+                </>
+              )}
             </svg>
-            <span>+50 XP ao concluir</span>
+            <span>{task.xp_awarded ? 'XP já creditado' : '+50 XP ao concluir'}</span>
           </div>
         )}
       </div>

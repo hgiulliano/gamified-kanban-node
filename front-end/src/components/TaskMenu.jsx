@@ -2,7 +2,8 @@
 // TASK MENU — Menu dropdown para editar/excluir task
 // ============================================
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useKanban } from '../context/KanbanContext'
 
 const STATUSES = [
@@ -20,6 +21,10 @@ function TaskMenu({ task }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const menuRef = useRef(null)
+  const panelRef = useRef(null)
+  // Posição do painel (fixed). Renderizado em portal para não ser
+  // cortado pelo overflow da coluna nem ficar atrás dos outros cards.
+  const [pos, setPos] = useState(null)
   const { moveTask, editTask, removeTask } = useKanban()
 
   const openMenu = () => {
@@ -29,18 +34,67 @@ function TaskMenu({ task }) {
     setOpen((v) => !v)
   }
 
-  // Fecha menu ao clicar fora
+  const updatePosition = useCallback(() => {
+    const el = menuRef.current
+    if (!el) return
+
+    const rect = el.getBoundingClientRect()
+    const width = Math.min(320, window.innerWidth - 24)
+    // Alinha pela direita do botão, mas sem vazar da tela
+    const left = Math.max(
+      12,
+      Math.min(rect.right - width, window.innerWidth - width - 12)
+    )
+    const top = rect.bottom + 8
+
+    setPos({
+      top,
+      left,
+      width,
+      maxHeight: Math.max(180, window.innerHeight - top - 16),
+    })
+  }, [])
+
+  // Mede a posição antes de pintar e mantém correta em scroll/resize
+  useLayoutEffect(() => {
+    if (!open) return
+
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [open, updatePosition])
+
+  // Fecha menu ao clicar fora (trigger ou painel)
   useEffect(() => {
     function handleClickOutside(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
+      if (menuRef.current?.contains(e.target)) return
+      if (panelRef.current?.contains(e.target)) return
+      setOpen(false)
+      setEditing(false)
+      setError('')
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Fecha com Esc
+  useEffect(() => {
+    if (!open) return
+    function handleKey(e) {
+      if (e.key === 'Escape') {
         setOpen(false)
         setEditing(false)
         setError('')
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [open])
 
   const closeMenu = () => {
     setOpen(false)
@@ -131,12 +185,22 @@ function TaskMenu({ task }) {
       className="task-menu"
       ref={menuRef}
       onPointerDown={(e) => e.stopPropagation()}
-      role="menu"
     >
       {trigger}
 
-      {open && (
-        <div className="menu-panel">
+      {open && pos && createPortal(
+        <div
+          className="menu-panel"
+          ref={panelRef}
+          role="menu"
+          style={{
+            top: pos.top,
+            left: pos.left,
+            width: pos.width,
+            maxHeight: pos.maxHeight,
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           {!editing ? (
             <>
               <div className="menu-header">
@@ -275,7 +339,8 @@ function TaskMenu({ task }) {
               </form>
             </>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

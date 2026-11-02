@@ -860,6 +860,12 @@
 
 .task-xp-earned svg { flex-shrink: 0; }
 
+/* Task concluída cujo XP já foi pago: visual neutro, não "promete" +50 de novo */
+.task-xp-earned.credited {
+  color: var(--color-text-muted);
+  background: var(--color-bg-hover);
+}
+
 /* ============================================
    TASK MENU
    ============================================ */
@@ -902,17 +908,17 @@
 }
 
 .menu-panel {
-  position: absolute;
-  top: calc(100% + var(--space-2));
-  right: 0;
-  z-index: var(--z-dropdown);
+  position: fixed;
+  z-index: var(--z-modal);
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl);
   min-width: 260px;
   max-width: 320px;
-  overflow: hidden;
+  /* O menu é renderizado em portal e pode passar da tela em telas baixas */
+  overflow-y: auto;
+  overscroll-behavior: contain;
   animation: scaleIn var(--transition-spring) ease-out;
   transform-origin: top right;
 }

@@ -177,7 +177,7 @@ app.get('/tasks', async (req, res) => {
     const result = await pool.query(`
       SELECT 
         t.id, t.title, t.status, t.created_at,
-        t.user_id,
+        t.user_id, t.xp_awarded,
         u.username,
         u.level,
         u.current_xp
@@ -256,7 +256,7 @@ app.patch('/tasks/:id/status', async (req, res) => {
 
     // 1. Verifica se task existe e pega user_id atual
     const taskResult = await client.query(
-      'SELECT id, title, status, user_id FROM tasks WHERE id = $1',
+      'SELECT id, title, status, user_id, xp_awarded FROM tasks WHERE id = $1',
       [taskId]
     );
 
@@ -287,42 +287,54 @@ app.patch('/tasks/:id/status', async (req, res) => {
       [status, taskId]
     );
 
-    // 3. Se moveu PARA READY → ganha 50 XP
+    // 3. Se moveu PARA READY → ganha 50 XP (uma única vez por task)
     let xpGained = 0;
     let levelUp = false;
     let newLevel = null;
     let newXp = null;
 
-    if (status === 'READY' && oldStatus !== 'READY') {
-      // Atualiza XP do usuário
-      const xpResult = await client.query(`
-        UPDATE users 
-        SET current_xp = current_xp + 50
-        WHERE id = $1
-        RETURNING level, current_xp
-      `, [userId]);
+    if (status === 'READY' && !task.xp_awarded) {
+      // Marca a task como premiada de forma ATÔMICA. Se duas requisições
+      // concorrentes chegarem aqui, só uma ganha o UPDATE (rowCount === 1),
+      // então o XP nunca é pago duas vezes.
+      const claim = await client.query(
+        `UPDATE tasks SET xp_awarded = TRUE
+         WHERE id = $1 AND xp_awarded = FALSE
+         RETURNING id`,
+        [taskId]
+      );
 
-      let currentXp = xpResult.rows[0].current_xp;
-      let currentLevel = xpResult.rows[0].level;
-      xpGained = 50;
+      if (claim.rowCount === 1) {
+        // Atualiza XP do usuário
+        const xpResult = await client.query(`
+          UPDATE users 
+          SET current_xp = current_xp + 50
+          WHERE id = $1
+          RETURNING level, current_xp
+        `, [userId]);
 
-      // Verifica level up (a cada 100 XP)
-      while (currentXp >= 100) {
-        currentXp -= 100;
-        currentLevel += 1;
-        levelUp = true;
+        let currentXp = xpResult.rows[0].current_xp;
+        let currentLevel = xpResult.rows[0].level;
+        xpGained = 50;
+
+        // Verifica level up (a cada 100 XP)
+        while (currentXp >= 100) {
+          currentXp -= 100;
+          currentLevel += 1;
+          levelUp = true;
+        }
+
+        // Se houve level up, atualiza no banco
+        if (levelUp) {
+          await client.query(
+            'UPDATE users SET level = $1, current_xp = $2 WHERE id = $3',
+            [currentLevel, currentXp, userId]
+          );
+        }
+
+        newLevel = currentLevel;
+        newXp = currentXp;
       }
-
-      // Se houve level up, atualiza no banco
-      if (levelUp) {
-        await client.query(
-          'UPDATE users SET level = $1, current_xp = $2 WHERE id = $3',
-          [currentLevel, currentXp, userId]
-        );
-      }
-
-      newLevel = currentLevel;
-      newXp = currentXp;
     }
 
     // Commit da transação
@@ -330,7 +342,7 @@ app.patch('/tasks/:id/status', async (req, res) => {
 
     // Busca task atualizada para retornar
     const updatedTask = await pool.query(
-      `SELECT t.id, t.title, t.status, t.user_id, t.created_at,
+      `SELECT t.id, t.title, t.status, t.user_id, t.created_at, t.xp_awarded,
               u.username, u.level, u.current_xp
        FROM tasks t
        JOIN users u ON t.user_id = u.id
@@ -399,7 +411,7 @@ app.patch('/tasks/:id', async (req, res) => {
 
     // Busca com join para retornar dados completos
     const updated = await pool.query(
-      `SELECT t.id, t.title, t.status, t.user_id, t.created_at,
+      `SELECT t.id, t.title, t.status, t.user_id, t.created_at, t.xp_awarded,
               u.username, u.level, u.current_xp
        FROM tasks t
        JOIN users u ON t.user_id = u.id

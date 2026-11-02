@@ -12,7 +12,9 @@ CREATE TABLE tasks (
     title VARCHAR(255) NOT NULL,
     status VARCHAR(20) DEFAULT 'TODO' CHECK (status IN ('TODO', 'DOING', 'REVIEW', 'READY')),
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    -- TRUE quando o XP dessa task já foi pago (evita farmar XP voltando para READY)
+    xp_awarded BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Índice para queries por usuário
