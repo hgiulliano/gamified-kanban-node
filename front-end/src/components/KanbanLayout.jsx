@@ -9,10 +9,14 @@ import UserProfile from './UserProfile'
 import TaskForm from './TaskForm'
 
 function KanbanLayout() {
-  const { users, addUser, refresh } = useKanban()
+  const { users, addUser, refresh, selectedUser } = useKanban()
   const [showProfile, setShowProfile] = useState(false)
+  const [showUserForm, setShowUserForm] = useState(false)
   const [newUsername, setNewUsername] = useState('')
   const [userFormError, setUserFormError] = useState('')
+
+  // O formulário de novo usuário só aparece quando pedido (ou se não há usuários)
+  const userFormVisible = showUserForm || users.length === 0
 
   const handleCreateUser = async (e) => {
     e.preventDefault()
@@ -59,42 +63,65 @@ function KanbanLayout() {
         </div>
 
         <div className="sidebar-content">
-          {users.length > 0 && (
-            <>
-              <UserProfile users={users} />
-              <div className="sidebar-divider" />
-            </>
-          )}
+          {users.length > 0 && <UserProfile users={users} />}
 
-          {users.length === 0 && (
-            <div className="sidebar-empty">
-              <p>Nenhum usuário cadastrado</p>
-            </div>
-          )}
+          <div className="sidebar-divider" />
 
-          <form onSubmit={handleCreateUser} className="user-form">
-            <h3 className="form-section-title">Novo Usuário</h3>
-            <div className="form-field">
-              <label htmlFor="new-username" className="visually-hidden">Username</label>
-              <input
-                id="new-username"
-                type="text"
-                value={newUsername}
-                onChange={(e) => setNewUsername(e.target.value)}
-                placeholder="username"
-                maxLength={50}
-                className={`form-input ${userFormError ? 'error' : ''}`}
-                aria-describedby={userFormError ? 'user-error' : undefined}
-                aria-invalid={!!userFormError}
-              />
-              {userFormError && (
-                <span id="user-error" className="field-error">{userFormError}</span>
-              )}
-            </div>
-            <button type="submit" className="btn btn-primary btn-block btn-sm">
-              Criar Usuário
+          {userFormVisible ? (
+            <form onSubmit={handleCreateUser} className="user-form">
+              <div className="form-section-header">
+                <h3 className="form-section-title">Novo Usuário</h3>
+                {users.length > 0 && (
+                  <button
+                    type="button"
+                    className="menu-close"
+                    onClick={() => {
+                      setShowUserForm(false)
+                      setUserFormError('')
+                      setNewUsername('')
+                    }}
+                    aria-label="Cancelar"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <div className="form-field">
+                <label htmlFor="new-username" className="visually-hidden">Username</label>
+                <input
+                  id="new-username"
+                  type="text"
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  placeholder="username"
+                  maxLength={50}
+                  className={`form-input ${userFormError ? 'error' : ''}`}
+                  aria-describedby={userFormError ? 'user-error' : undefined}
+                  aria-invalid={!!userFormError}
+                />
+                {userFormError && (
+                  <span id="user-error" className="field-error">{userFormError}</span>
+                )}
+              </div>
+              <button type="submit" className="btn btn-primary btn-block btn-sm">
+                Criar Usuário
+              </button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-secondary btn-block btn-sm"
+              onClick={() => setShowUserForm(true)}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Novo Usuário
             </button>
-          </form>
+          )}
         </div>
       </aside>
 
@@ -124,6 +151,15 @@ function KanbanLayout() {
               </svg>
             </button>
             <h1 className="app-title">Gamified Kanban</h1>
+            {selectedUser && (
+              <span className="header-user" title="Tasks visíveis no quadro">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                {selectedUser.username}
+              </span>
+            )}
           </div>
           <div className="header-right">
             <button className="btn btn-secondary btn-sm" onClick={refresh} type="button">
@@ -138,7 +174,7 @@ function KanbanLayout() {
 
         {/* Formulário de criação fica acima do quadro, fora do header sticky */}
         <div className="board-toolbar">
-          <TaskForm users={users} />
+          <TaskForm />
         </div>
 
         <Board />

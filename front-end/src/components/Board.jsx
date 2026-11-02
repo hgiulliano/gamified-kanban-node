@@ -30,7 +30,7 @@ const COLUMN_CONFIG = {
 }
 
 function Board() {
-  const { tasks, loading, error, moveTask, users } = useKanban()
+  const { tasks, visibleTasks, loading, error, moveTask, users } = useKanban()
 
   // Sensores para drag-and-drop
   const sensors = useSensors(
@@ -66,7 +66,10 @@ function Board() {
   }
 
   // IDs como STRING para @dnd-kit
-  const sortableIds = useMemo(() => tasks.map((t) => String(t.id)), [tasks])
+  const sortableIds = useMemo(
+    () => visibleTasks.map((t) => String(t.id)),
+    [visibleTasks]
+  )
 
   if (loading) {
     return (
@@ -107,7 +110,7 @@ function Board() {
           <div className="board-grid" role="list">
             {COLUMN_ORDER.map((status) => {
               const config = COLUMN_CONFIG[status]
-              const columnTasks = tasks
+              const columnTasks = visibleTasks
                 .filter((t) => t.status === status)
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
@@ -117,7 +120,6 @@ function Board() {
                   status={status}
                   config={config}
                   tasks={columnTasks}
-                  allTasks={tasks}
                   users={users}
                 />
               )

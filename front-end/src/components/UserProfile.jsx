@@ -6,8 +6,7 @@ import { useState, useMemo } from 'react'
 import { useKanban } from '../context/KanbanContext'
 
 function UserProfile({ users }) {
-  const { tasks } = useKanban()
-  const [selectedUserId, setSelectedUserId] = useState(users[0]?.id || null)
+  const { tasks, selectedUserId, setSelectedUserId } = useKanban()
   const [view, setView] = useState('stats') // 'stats' | 'tasks'
 
   // Se o usuário selecionado não existe mais, cai para o primeiro da lista
@@ -56,44 +55,21 @@ function UserProfile({ users }) {
         </div>
       </div>
 
-      {/* Stats principais */}
+      {/* Stats principais — compactos para caber sem rolagem */}
       <div className="user-stats">
         <div className="stat-card primary">
-          <div className="stat-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-          </div>
-          <div className="stat-content">
-            <p className="stat-value">Nv. {user.level}</p>
-            <p className="stat-label">Nível Atual</p>
-          </div>
+          <p className="stat-value">{user.level}</p>
+          <p className="stat-label">Nível</p>
         </div>
 
         <div className="stat-card xp">
-          <div className="stat-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <div className="stat-content">
-            <p className="stat-value">{user.current_xp} / 100 XP</p>
-            <p className="stat-label">Experiência Atual</p>
-          </div>
+          <p className="stat-value">{user.current_xp}/100</p>
+          <p className="stat-label">XP</p>
         </div>
 
         <div className="stat-card completed">
-          <div className="stat-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
-          <div className="stat-content">
-            <p className="stat-value">{completedTasks.length}</p>
-            <p className="stat-label">Tasks Concluídas</p>
-          </div>
+          <p className="stat-value">{completedTasks.length}</p>
+          <p className="stat-label">Concluídas</p>
         </div>
       </div>
 

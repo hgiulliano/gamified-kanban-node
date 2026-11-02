@@ -18,6 +18,8 @@ const KanbanContext = createContext(undefined)
 export function KanbanProvider({ children }) {
   const [tasks, setTasks] = useState([])
   const [users, setUsers] = useState([])
+  // Usuário selecionado na sidebar. Fica no contexto para o board poder filtrar.
+  const [selectedUserId, setSelectedUserId] = useState(null)
   const [loading, setLoading] = useState(true)
   // `error` guarda APENAS erro de carregamento inicial.
   // Erros de ações (mover/editar/excluir) viram toast, para não sumir com o board.
@@ -58,6 +60,11 @@ export function KanbanProvider({ children }) {
         }
       })
       setUsers(Array.from(userMap.values()))
+      // Mantém a seleção atual se ainda existir; senão seleciona o primeiro
+      const list = Array.from(userMap.values())
+      setSelectedUserId((prev) =>
+        list.some((u) => u.id === prev) ? prev : list[0]?.id ?? null
+      )
     } catch (err) {
       setError(err.message)
     } finally {
@@ -218,6 +225,7 @@ export function KanbanProvider({ children }) {
       try {
         const newUser = await createUser(username)
         setUsers((prev) => [...prev, newUser])
+        setSelectedUserId(newUser.id) // já deixa o novo usuário selecionado
         return newUser
       } catch (err) {
         showToast({ type: 'error', title: 'Erro ao criar usuário', message: err.message })
@@ -229,8 +237,18 @@ export function KanbanProvider({ children }) {
 
   const clearError = useCallback(() => setError(null), [])
 
+  // Dados derivados da seleção (o board só mostra as tasks do usuário atual)
+  const selectedUser = users.find((u) => u.id === selectedUserId) || null
+  const visibleTasks =
+    selectedUserId === null ? [] : tasks.filter((t) => t.user_id === selectedUserId)
+
   const value = {
     tasks,
+    // tasks filtradas pelo usuário selecionado — usadas pelo Board
+    visibleTasks,
+    selectedUserId,
+    setSelectedUserId,
+    selectedUser,
     users,
     loading,
     error,

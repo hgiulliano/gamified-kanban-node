@@ -2,14 +2,21 @@
 // TASK FORM — Formulário para criar nova task
 // ============================================
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useKanban } from '../context/KanbanContext'
 import UserSelect from './UserSelect'
 
-function TaskForm({ users, onSubmit }) {
+function TaskForm() {
+  const { users, addTask, selectedUserId } = useKanban()
   const [title, setTitle] = useState('')
-  const [userId, setUserId] = useState(users[0]?.id || null)
+  const [userId, setUserId] = useState(selectedUserId ?? users[0]?.id ?? null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  // Ao trocar o usuário na sidebar, o responsável do formulário acompanha
+  useEffect(() => {
+    if (selectedUserId != null) setUserId(selectedUserId)
+  }, [selectedUserId])
 
   const charCount = title.length
   const isValid = title.trim().length > 0 && title.length <= 255 && userId !== null
@@ -23,9 +30,9 @@ function TaskForm({ users, onSubmit }) {
     try {
       setSubmitting(true)
       setError('')
-      await onSubmit(title.trim(), userId)
+      await addTask(title.trim(), userId)
       setTitle('')
-      setUserId(users[0]?.id || null)
+      setUserId(selectedUserId ?? users[0]?.id ?? null)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -43,15 +50,15 @@ function TaskForm({ users, onSubmit }) {
               type="text"
               id="task-title"
               value={title}
-              onChange={(e) => { setTitle(e.target.value); setError(''); }}
+              onChange={(e) => { setTitle(e.target.value); setError('') }}
               placeholder="O que precisa ser feito?"
               maxLength={255}
               disabled={submitting}
               className={`form-input ${charCount > 255 ? 'error' : ''}`}
               aria-describedby={charCount > 0 ? 'char-count' : undefined}
             />
-            <span 
-              id="char-count" 
+            <span
+              id="char-count"
               className={`char-count ${charCount > 240 ? 'warning' : ''} ${charCount > 255 ? 'error' : ''}`}
             >
               {charCount}/255

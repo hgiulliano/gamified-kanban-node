@@ -5,7 +5,7 @@
 import { useDroppable } from '@dnd-kit/core'
 import TaskCard from './TaskCard'
 
-function Column({ status, config, tasks, allTasks, users }) {
+function Column({ status, config, tasks, users }) {
   const {
     setNodeRef,
     isOver,
@@ -49,7 +49,6 @@ function Column({ status, config, tasks, allTasks, users }) {
             <TaskCard
               key={String(task.id)}
               task={task}
-              allTasks={allTasks}
               users={users}
             />
           ))
