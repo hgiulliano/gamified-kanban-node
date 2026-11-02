@@ -28,7 +28,7 @@ function Column({ status, config, tasks, allTasks, users }) {
       {/* Header da coluna */}
       <div className="column-header">
         <div className="column-title">
-          <span className="column-icon" aria-hidden="true">{config.icon}</span>
+          <span className="column-icon" aria-hidden="true" />
           <span>{config.label}</span>
         </div>
         <span className="column-count">{tasks.length}</span>

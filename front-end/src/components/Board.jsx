@@ -1,20 +1,32 @@
 // ============================================
-// BOARD — Quadro Kanban com drag-and-drop corrigido
+// BOARD — Quadro Kanban com drag-and-drop
 // ============================================
 
 import { useMemo } from 'react'
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable'
 import Column from './Column'
 import { useKanban } from '../context/KanbanContext'
 
 const COLUMN_ORDER = ['TODO', 'DOING', 'REVIEW', 'READY']
 
+// Sem emojis: o ícone de cada coluna é um "ponto" colorido via CSS
 const COLUMN_CONFIG = {
-  TODO: { label: 'A Fazer', icon: '📋' },
-  DOING: { label: 'Fazendo', icon: '⚡' },
-  REVIEW: { label: 'Revisão', icon: '👁' },
-  READY: { label: 'Concluída', icon: '✓' },
+  TODO: { label: 'A Fazer' },
+  DOING: { label: 'Fazendo' },
+  REVIEW: { label: 'Revisão' },
+  READY: { label: 'Concluída' },
 }
 
 function Board() {
@@ -26,28 +38,35 @@ function Board() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
-  // Handler do drag end - CORRIGIDO: IDs como string
   const handleDragEnd = async (event) => {
     const { active, over } = event
     if (!over) return
 
-    // active.id vem como string do useSortable
     const taskId = Number(active.id)
-    const newStatus = over.id // status string: 'TODO', 'DOING', etc.
 
-    // Evita mover para mesmo status
-    const task = tasks.find(t => t.id === taskId)
-    if (task && task.status === newStatus) return
+    // BUGFIX: `over.id` pode ser:
+    //  - o id de uma COLUNA ("READY") quando solta no espaço vazio; ou
+    //  - o id de um CARD ("9") quando solta em cima de outro card.
+    // Antes, o id do card era enviado como status → API retornava 400.
+    // Aqui resolvemos sempre para um status válido.
+    const overId = String(over.id)
+    const overTask = tasks.find((t) => String(t.id) === overId)
+    const newStatus = COLUMN_ORDER.includes(overId) ? overId : overTask?.status
+
+    if (!newStatus) return
+
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task || task.status === newStatus) return
 
     try {
       await moveTask(taskId, newStatus)
-    } catch (err) {
-      console.error('Erro ao mover task:', err)
+    } catch {
+      // O contexto já mostra o toast de erro e faz o rollback
     }
   }
 
   // IDs como STRING para @dnd-kit
-  const sortableIds = useMemo(() => tasks.map(t => String(t.id)), [tasks])
+  const sortableIds = useMemo(() => tasks.map((t) => String(t.id)), [tasks])
 
   if (loading) {
     return (
@@ -83,16 +102,13 @@ function Board() {
       collisionDetection={closestCenter}
       onDragEnd={handleDragEnd}
     >
-      <SortableContext
-        items={sortableIds}
-        strategy={verticalListSortingStrategy}
-      >
+      <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
         <div className="kanban-board" role="region" aria-label="Quadro Kanban">
           <div className="board-grid" role="list">
-            {COLUMN_ORDER.map(status => {
+            {COLUMN_ORDER.map((status) => {
               const config = COLUMN_CONFIG[status]
               const columnTasks = tasks
-                .filter(t => t.status === status)
+                .filter((t) => t.status === status)
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
               return (
@@ -112,8 +128,5 @@ function Board() {
     </DndContext>
   )
 }
-
-// Import no final para evitar erro de referência circular
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 
 export default Board

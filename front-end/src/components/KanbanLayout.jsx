@@ -7,13 +7,10 @@ import { useKanban } from '../context/KanbanContext'
 import Board from './Board'
 import UserProfile from './UserProfile'
 import TaskForm from './TaskForm'
-import UserSelect from './UserSelect'
-import { createUser, getUser } from '../services/api'
 
 function KanbanLayout() {
-  const { users, addUser, loading: usersLoading } = useKanban()
+  const { users, addUser, refresh } = useKanban()
   const [showProfile, setShowProfile] = useState(false)
-  const [showUserForm, setShowUserForm] = useState(false)
   const [newUsername, setNewUsername] = useState('')
   const [userFormError, setUserFormError] = useState('')
 
@@ -21,8 +18,8 @@ function KanbanLayout() {
     e.preventDefault()
     const username = newUsername.trim()
     if (!username) return
-    if (username.length < 3 || username.length > 30) {
-      setUserFormError('Username deve ter entre 3 e 30 caracteres')
+    if (username.length < 3 || username.length > 50) {
+      setUserFormError('Username deve ter entre 3 e 50 caracteres')
       return
     }
     if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
@@ -62,42 +59,42 @@ function KanbanLayout() {
         </div>
 
         <div className="sidebar-content">
-          {users.length === 0 ? (
-            <div className="sidebar-empty">
-              <p>Nenhum usuário cadastrado</p>
-              <button className="btn btn-primary btn-sm" onClick={() => setShowUserForm(true)}>
-                Criar Primeiro Usuário
-              </button>
-            </div>
-          ) : (
+          {users.length > 0 && (
             <>
               <UserProfile users={users} />
               <div className="sidebar-divider" />
-              <form onSubmit={handleCreateUser} className="user-form">
-                <h3 className="form-section-title">Novo Usuário</h3>
-                <div className="form-field">
-                  <label htmlFor="new-username" className="visually-hidden">Username</label>
-                  <input
-                    id="new-username"
-                    type="text"
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    placeholder="username"
-                    maxLength={30}
-                    className={`form-input ${userFormError ? 'error' : ''}`}
-                    aria-describedby={userFormError ? 'user-error' : undefined}
-                    aria-invalid={!!userFormError}
-                  />
-                  {userFormError && (
-                    <span id="user-error" className="field-error">{userFormError}</span>
-                  )}
-                </div>
-                <button type="submit" className="btn btn-primary btn-block btn-sm">
-                  Criar Usuário
-                </button>
-              </form>
             </>
           )}
+
+          {users.length === 0 && (
+            <div className="sidebar-empty">
+              <p>Nenhum usuário cadastrado</p>
+            </div>
+          )}
+
+          <form onSubmit={handleCreateUser} className="user-form">
+            <h3 className="form-section-title">Novo Usuário</h3>
+            <div className="form-field">
+              <label htmlFor="new-username" className="visually-hidden">Username</label>
+              <input
+                id="new-username"
+                type="text"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                placeholder="username"
+                maxLength={50}
+                className={`form-input ${userFormError ? 'error' : ''}`}
+                aria-describedby={userFormError ? 'user-error' : undefined}
+                aria-invalid={!!userFormError}
+              />
+              {userFormError && (
+                <span id="user-error" className="field-error">{userFormError}</span>
+              )}
+            </div>
+            <button type="submit" className="btn btn-primary btn-block btn-sm">
+              Criar Usuário
+            </button>
+          </form>
         </div>
       </aside>
 
@@ -129,9 +126,21 @@ function KanbanLayout() {
             <h1 className="app-title">Gamified Kanban</h1>
           </div>
           <div className="header-right">
-            <TaskForm users={users} />
+            <button className="btn btn-secondary btn-sm" onClick={refresh} type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M21 12a9 9 0 1 1-3-6.7" />
+                <path d="M21 3v6h-6" />
+              </svg>
+              Atualizar
+            </button>
           </div>
         </header>
+
+        {/* Formulário de criação fica acima do quadro, fora do header sticky */}
+        <div className="board-toolbar">
+          <TaskForm users={users} />
+        </div>
+
         <Board />
       </main>
     </div>

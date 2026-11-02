@@ -10,13 +10,19 @@ function UserProfile({ users }) {
   const [selectedUserId, setSelectedUserId] = useState(users[0]?.id || null)
   const [view, setView] = useState('stats') // 'stats' | 'tasks'
 
-  const user = users.find(u => u.id === selectedUserId)
-  if (!user) return null
+  // Se o usuário selecionado não existe mais, cai para o primeiro da lista
+  const user = users.find((u) => u.id === selectedUserId) || users[0]
+  const userId = user?.id ?? null
 
-  // Tasks do usuário selecionado
-  const userTasks = useMemo(() => 
-    tasks.filter(t => t.user_id === user.id)
-  , [tasks, user.id])
+  // REGRA DOS HOOKS: useMemo precisa ser chamado ANTES de qualquer return.
+  // Antes ele estava depois de `if (!user) return null`, o que muda a
+  // quantidade de hooks entre renders e pode derrubar a tela.
+  const userTasks = useMemo(
+    () => (userId === null ? [] : tasks.filter((t) => t.user_id === userId)),
+    [tasks, userId]
+  )
+
+  if (!user) return null
 
   const completedTasks = userTasks.filter(t => t.status === 'READY')
   const inProgressTasks = userTasks.filter(t => t.status !== 'READY' && t.status !== 'TODO')

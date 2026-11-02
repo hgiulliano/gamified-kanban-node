@@ -2,7 +2,6 @@
 // TASK CARD — Card arrastável com ações (editar/excluir)
 // ============================================
 
-import { useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import TaskMenu from './TaskMenu'
@@ -14,7 +13,7 @@ const STATUS_LABELS = {
   READY: 'Concluída',
 }
 
-function TaskCard({ task, allTasks, users }) {
+function TaskCard({ task, users }) {
   const {
     attributes,
     listeners,
@@ -63,7 +62,7 @@ function TaskCard({ task, allTasks, users }) {
       </button>
 
       {/* Menu de ações (editar/excluir) */}
-      <TaskMenu task={task} allTasks={allTasks} users={users} />
+      <TaskMenu task={task} />
 
       {/* Conteúdo */}
       <div className="task-content">

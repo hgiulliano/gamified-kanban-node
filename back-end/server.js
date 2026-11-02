@@ -24,17 +24,35 @@ const pool = new Pool({
 
 // 4. Testar conexão na inicialização
 pool.query('SELECT NOW()')
-  .then(() => console.log('✅ Conectado ao PostgreSQL'))
-  .catch(err => console.error('❌ Erro ao conectar no PostgreSQL:', err));
+  .then(() => console.log('[db] Conectado ao PostgreSQL'))
+  .catch(err => console.error('[db] Erro ao conectar no PostgreSQL:', err));
 
 // 5. App Express
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 6. Middlewares
-// CORS configurado: só aceita FRONTEND_URL (com fallback) e métodos específicos
+// CORS: aceita a(s) URL(s) de FRONTEND_URL (separadas por vírgula).
+// Em desenvolvimento também libera qualquer porta de localhost, porque o Vite
+// troca de porta sozinho (5173, 5174, 5175...) quando a anterior está ocupada.
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin(origin, callback) {
+    // Requisições sem Origin (curl, Postman, healthcheck) são permitidas
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+
+    const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+    if (process.env.NODE_ENV !== 'production' && isLocalhost) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origem bloqueada pelo CORS: ${origin}`));
+  },
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   credentials: false
 };
@@ -421,6 +439,16 @@ app.delete('/tasks/:id', async (req, res) => {
 });
 
 // 15. Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`[server] Rodando em http://localhost:${PORT}`);
+});
+
+// Mensagem clara em vez de stack trace quando a porta já está ocupada
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`[server] A porta ${PORT} já está em uso.`);
+    console.error('[server] Encerre o processo antigo ou defina outra PORT no .env');
+    process.exit(1);
+  }
+  throw err;
 });

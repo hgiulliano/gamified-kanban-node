@@ -36,7 +36,24 @@
   .sidebar {
     position: sticky;
     top: 0;
+    height: 100vh;
     transform: translateX(0);
+  }
+}
+
+/* No desktop a sidebar é "sticky" e já ocupa espaço no flex,
+   então o main NÃO precisa de margin-left (antes dobrava o espaçamento). */
+.main-content {
+  flex: 1;
+  margin-left: 0;
+  min-width: 0;
+  min-height: 100vh;
+  transition: margin-left var(--transition-base);
+}
+
+@media (max-width: 767px) {
+  .main-content {
+    width: 100%;
   }
 }
 
@@ -435,15 +452,12 @@
   transition: margin-left var(--transition-base);
 }
 
-@media (min-width: 768px) {
-  .main-content { margin-left: var(--sidebar-width); }
-}
-
 .main-header {
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
@@ -495,6 +509,21 @@
 
 .header-right {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Toolbar com o formulário de nova task */
+.board-toolbar {
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  padding: var(--space-5) var(--space-5) 0;
+}
+
+@media (min-width: 768px) {
+  .board-toolbar { padding: var(--space-6) var(--space-6) 0; }
 }
 
 /* Sidebar Overlay */
@@ -515,13 +544,13 @@
    ============================================ */
 
 .kanban-board {
-  padding: var(--space-5);
+  padding: var(--space-4) var(--space-5) var(--space-5);
   max-width: 1400px;
   margin: 0 auto;
 }
 
 @media (min-width: 768px) {
-  .kanban-board { padding: var(--space-6); }
+  .kanban-board { padding: var(--space-4) var(--space-6) var(--space-6); }
 }
 
 .board-grid {
@@ -620,7 +649,14 @@
   letter-spacing: 0.05em;
 }
 
-.column-icon { font-size: var(--text-base); }
+/* Ícone da coluna: ponto colorido (sem emoji) */
+.column-icon {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--col-color);
+  flex-shrink: 0;
+}
 
 .column-count {
   background: var(--col-color);
@@ -818,12 +854,47 @@
    ============================================ */
 
 .task-menu {
-  position: fixed;
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
   z-index: var(--z-dropdown);
-  animation: scaleIn var(--transition-spring) ease-out;
+}
+
+/* Botão "⋮" que abre o menu de ações */
+.menu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0.65;
+  transition: all var(--transition-fast);
+}
+
+.task-card:hover .menu-trigger,
+.menu-trigger:focus-visible,
+.menu-trigger[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.menu-trigger:hover,
+.menu-trigger[aria-expanded="true"] {
+  color: var(--color-text);
+  background: var(--color-bg-hover);
+  border-color: var(--color-border);
 }
 
 .menu-panel {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: var(--z-dropdown);
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
@@ -831,6 +902,12 @@
   min-width: 260px;
   max-width: 320px;
   overflow: hidden;
+  animation: scaleIn var(--transition-spring) ease-out;
+  transform-origin: top right;
+}
+
+.menu-error {
+  padding: 0 var(--space-4) var(--space-3);
 }
 
 .menu-header {
@@ -1331,10 +1408,6 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
 }
-
-.board-error .error-icon { color: var(--color-error); margin-bottom: var(--space-3); }
-.board-error h2 { font-size: var(--text-xl); font-weight: var(--font-semibold); color: var(--color-text); margin: 0; }
-.board-error p { color: var(--color-text-secondary); margin: 0 0 var(--space-4); }
 
 /* ============================================
    RESPONSIVO

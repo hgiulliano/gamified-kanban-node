@@ -3,14 +3,14 @@
 // ============================================
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { 
-  getTasks, 
-  createTask, 
-  updateTaskStatus, 
-  getUser, 
+import {
+  getTasks,
+  createTask,
+  updateTaskStatus,
+  getUser,
   createUser,
   deleteTask,
-  updateTask
+  updateTask,
 } from '../services/api'
 
 const KanbanContext = createContext(undefined)
@@ -19,18 +19,20 @@ export function KanbanProvider({ children }) {
   const [tasks, setTasks] = useState([])
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
+  // `error` guarda APENAS erro de carregamento inicial.
+  // Erros de ações (mover/editar/excluir) viram toast, para não sumir com o board.
   const [error, setError] = useState(null)
   const [toasts, setToasts] = useState([])
 
   // Toast system
   const showToast = useCallback((toast) => {
     const id = Date.now() + Math.random()
-    setToasts(prev => [...prev, { id, ...toast }])
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000)
+    setToasts((prev) => [...prev, { id, ...toast }])
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000)
   }, [])
 
   const removeToast = useCallback((id) => {
-    setToasts(prev => prev.filter(t => t.id !== id))
+    setToasts((prev) => prev.filter((t) => t.id !== id))
   }, [])
 
   // Carrega dados iniciais
@@ -38,25 +40,24 @@ export function KanbanProvider({ children }) {
     try {
       setLoading(true)
       setError(null)
-      const [tasksData, usersData] = await Promise.all([
-        getTasks(),
-        getTasks().then(tasks => {
-          const userMap = new Map()
-          tasks.forEach(t => {
-            if (t.user_id && !userMap.has(t.user_id)) {
-              userMap.set(t.user_id, {
-                id: t.user_id,
-                username: t.username,
-                level: t.level,
-                current_xp: t.current_xp,
-              })
-            }
-          })
-          return Array.from(userMap.values())
-        })
-      ])
+
+      // Uma única chamada: /tasks já devolve username/level/current_xp (JOIN)
+      const tasksData = await getTasks()
       setTasks(tasksData)
-      setUsers(usersData)
+
+      // Monta a lista de usuários a partir das tasks, sem duplicar
+      const userMap = new Map()
+      tasksData.forEach((t) => {
+        if (t.user_id && !userMap.has(t.user_id)) {
+          userMap.set(t.user_id, {
+            id: t.user_id,
+            username: t.username,
+            level: t.level,
+            current_xp: t.current_xp,
+          })
+        }
+      })
+      setUsers(Array.from(userMap.values()))
     } catch (err) {
       setError(err.message)
     } finally {
@@ -64,138 +65,167 @@ export function KanbanProvider({ children }) {
     }
   }, [])
 
-  useEffect(() => { loadInitialData() }, [loadInitialData])
+  useEffect(() => {
+    loadInitialData()
+  }, [loadInitialData])
 
   // Criar task
-  const addTask = useCallback(async (title, userId) => {
-    try {
-      setError(null)
-      const newTask = await createTask(title, userId)
-      setTasks(prev => [newTask, ...prev])
-      
-      if (!users.find(u => u.id === userId)) {
-        const user = await getUser(userId)
-        setUsers(prev => [...prev, user])
+  const addTask = useCallback(
+    async (title, userId) => {
+      try {
+        const newTask = await createTask(title, userId)
+        setTasks((prev) => [newTask, ...prev])
+
+        if (!users.find((u) => u.id === userId)) {
+          const user = await getUser(userId)
+          setUsers((prev) => [...prev, user])
+        }
+      } catch (err) {
+        showToast({ type: 'error', title: 'Erro ao criar task', message: err.message })
+        throw err
       }
-    } catch (err) {
-      setError(err.message)
-      throw err
-    }
-  }, [users])
+    },
+    [users, showToast]
+  )
 
   // Mover task (com XP/Level Up)
-  const moveTask = useCallback(async (taskId, newStatus) => {
-    const task = tasks.find(t => t.id === taskId)
-    if (!task) return
+  const moveTask = useCallback(
+    async (taskId, newStatus) => {
+      const task = tasks.find((t) => t.id === taskId)
+      if (!task) return
 
-    const oldStatus = task.status
+      const oldStatus = task.status
 
-    // Otimista
-    setTasks(prev => prev.map(t => 
-      t.id === taskId ? { ...t, status: newStatus } : t
-    ))
+      // Atualização otimista (UI responde na hora)
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+      )
 
-    try {
-      setError(null)
-      const result = await updateTaskStatus(taskId, newStatus)
-      
-      if (result.task) {
-        const wasReady = oldStatus === 'READY'
-        const isNowReady = newStatus === 'READY'
-        const gainedXP = result.xp_gained || 0
-        const leveledUp = result.level_up || false
+      try {
+        const result = await updateTaskStatus(taskId, newStatus)
 
-        setTasks(prev => prev.map(t => 
-          t.id === taskId ? { ...t, ...result.task } : t
-        ))
+        // Se a API respondeu com a task completa, sincroniza
+        if (result.task) {
+          const wasReady = oldStatus === 'READY'
+          const isNowReady = newStatus === 'READY'
+          const gainedXP = result.xp_gained || 0
+          const leveledUp = result.level_up || false
 
-        if (result.task.user_id) {
-          setUsers(prev => prev.map(u => 
-            u.id === result.task.user_id ? { ...u, level: result.task.level, current_xp: result.task.current_xp } : u
-          ))
-        }
+          setTasks((prev) =>
+            prev.map((t) => (t.id === taskId ? { ...t, ...result.task } : t))
+          )
 
-        // Toast notifications
-        if (isNowReady && !wasReady && gainedXP > 0) {
-          if (leveledUp) {
-            showToast({
-              type: 'level-up',
-              title: 'Level Up!',
-              message: `${task.username} subiu para nível ${result.new_level}! (+${gainedXP} XP)`,
-            })
-          } else {
-            showToast({
-              type: 'xp-gain',
-              title: 'Task Concluída',
-              message: `${task.username} ganhou ${gainedXP} XP (Total: ${result.new_xp} XP)`,
-            })
+          if (result.task.user_id) {
+            setUsers((prev) =>
+              prev.map((u) =>
+                u.id === result.task.user_id
+                  ? {
+                      ...u,
+                      level: result.task.level,
+                      current_xp: result.task.current_xp,
+                    }
+                  : u
+              )
+            )
+          }
+
+          // Toast notifications
+          if (isNowReady && !wasReady && gainedXP > 0) {
+            if (leveledUp) {
+              showToast({
+                type: 'level-up',
+                title: 'Level Up!',
+                message: `${task.username} subiu para nível ${result.new_level}! (+${gainedXP} XP)`,
+              })
+            } else {
+              showToast({
+                type: 'xp-gain',
+                title: 'Task Concluída',
+                message: `${task.username} ganhou ${gainedXP} XP (Total: ${result.new_xp} XP)`,
+              })
+            }
           }
         }
+      } catch (err) {
+        // Rollback: volta a task para o status antigo
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, status: oldStatus } : t))
+        )
+        showToast({ type: 'error', title: 'Não foi possível mover', message: err.message })
+        throw err
       }
-    } catch (err) {
-      // Rollback
-      setTasks(prev => prev.map(t => 
-        t.id === taskId ? { ...t, status: oldStatus } : t
-      ))
-      setError(err.message)
-      throw err
-    }
-  }, [tasks, showToast])
+    },
+    [tasks, showToast]
+  )
 
-  // Atualizar task (título/status)
-  const editTask = useCallback(async (taskId, updates) => {
-    const task = tasks.find(t => t.id === taskId)
-    if (!task) return
+  // Editar título da task (persiste no back-end)
+  const editTask = useCallback(
+    async (taskId, updates) => {
+      const task = tasks.find((t) => t.id === taskId)
+      if (!task) return
 
-    const oldTask = { ...task }
+      const oldTask = { ...task }
 
-    // Otimista
-    setTasks(prev => prev.map(t => 
-      t.id === taskId ? { ...t, ...updates } : t
-    ))
+      // Otimista
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t))
+      )
 
-    try {
-      setError(null)
-      // Nota: precisaria de endpoint PATCH /tasks/:id no back-end
-      // Por enquanto só atualiza local
-      // await updateTask(taskId, updates)
-    } catch (err) {
-      setTasks(prev => prev.map(t => t.id === taskId ? oldTask : t))
-      setError(err.message)
-      throw err
-    }
-  }, [tasks])
+      try {
+        // PATCH /tasks/:id — hoje o back-end aceita `title`
+        if (updates.title !== undefined) {
+          const updated = await updateTask(taskId, { title: updates.title })
+          if (updated?.id) {
+            setTasks((prev) =>
+              prev.map((t) => (t.id === taskId ? { ...t, ...updated } : t))
+            )
+          }
+        }
+      } catch (err) {
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? oldTask : t)))
+        showToast({ type: 'error', title: 'Erro ao editar', message: err.message })
+        throw err
+      }
+    },
+    [tasks, showToast]
+  )
 
-  // Excluir task
-  const removeTask = useCallback(async (taskId) => {
-    const task = tasks.find(t => t.id === taskId)
-    if (!task) return
+  // Excluir task (persiste no back-end)
+  const removeTask = useCallback(
+    async (taskId) => {
+      const task = tasks.find((t) => t.id === taskId)
+      if (!task) return
 
-    // Otimista
-    setTasks(prev => prev.filter(t => t.id !== taskId))
+      // Otimista
+      setTasks((prev) => prev.filter((t) => t.id !== taskId))
 
-    try {
-      setError(null)
-      // await deleteTask(taskId)
-    } catch (err) {
-      setTasks(prev => [...prev, task])
-      setError(err.message)
-      throw err
-    }
-  }, [tasks])
+      try {
+        await deleteTask(taskId)
+        showToast({ type: 'success', title: 'Task excluída', message: task.title })
+      } catch (err) {
+        // Rollback: re-insere a task
+        setTasks((prev) => [task, ...prev])
+        showToast({ type: 'error', title: 'Erro ao excluir', message: err.message })
+        throw err
+      }
+    },
+    [tasks, showToast]
+  )
 
   // Usuários
-  const addUser = useCallback(async (username) => {
-    try {
-      setError(null)
-      const newUser = await createUser(username)
-      setUsers(prev => [...prev, newUser])
-      return newUser
-    } catch (err) {
-      setError(err.message)
-      throw err
-    }
-  }, [])
+  const addUser = useCallback(
+    async (username) => {
+      try {
+        const newUser = await createUser(username)
+        setUsers((prev) => [...prev, newUser])
+        return newUser
+      } catch (err) {
+        showToast({ type: 'error', title: 'Erro ao criar usuário', message: err.message })
+        throw err
+      }
+    },
+    [showToast]
+  )
 
   const clearError = useCallback(() => setError(null), [])
 
@@ -219,7 +249,7 @@ export function KanbanProvider({ children }) {
     <KanbanContext.Provider value={value}>
       {children}
       <div className="toast-container" role="region" aria-label="Notificações" aria-live="polite">
-        {toasts.map(toast => (
+        {toasts.map((toast) => (
           <Toast key={toast.id} toast={toast} onClose={removeToast} />
         ))}
       </div>
@@ -230,21 +260,43 @@ export function KanbanProvider({ children }) {
 // Toast Component
 function Toast({ toast, onClose }) {
   const icons = {
-    'xp-gain': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>,
-    'level-up': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
-    'error': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+    'xp-gain': (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" />
+        <path d="M2 17l10 5 10-5" />
+        <path d="M2 12l10 5 10-5" />
+      </svg>
+    ),
+    'level-up': (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      </svg>
+    ),
+    'success': (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    ),
+    'error': (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
+    ),
   }
 
   const colors = {
     'xp-gain': 'var(--color-success)',
     'level-up': 'var(--color-warning)',
+    'success': 'var(--color-success)',
     'error': 'var(--color-error)',
   }
 
   return (
-    <div 
-      className="toast" 
-      role="alert" 
+    <div
+      className="toast"
+      role="alert"
       aria-live="polite"
       style={{ borderLeftColor: colors[toast.type] }}
     >
