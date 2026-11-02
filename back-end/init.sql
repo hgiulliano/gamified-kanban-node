@@ -12,7 +12,7 @@ CREATE TABLE tasks (
     title VARCHAR(255) NOT NULL,
     status VARCHAR(20) DEFAULT 'TODO' CHECK (status IN ('TODO', 'DOING', 'REVIEW', 'READY')),
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Índice para queries por usuário
