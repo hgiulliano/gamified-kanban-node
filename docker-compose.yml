@@ -1,0 +1,53 @@
+name: gamified-kanban
+
+services:
+  db:
+    image: postgres:15
+    container_name: gamified-kanban-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-kanban_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-kanban_pass}
+      POSTGRES_DB: ${DB_NAME:-gamified_kanban}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Em um banco novo, o init.sql cria o schema já no estado final
+      - ./back-end/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-kanban_user} -d ${DB_NAME:-gamified_kanban}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./back-end
+    container_name: gamified-kanban-api
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-kanban_user}
+      DB_PASSWORD: ${DB_PASSWORD:-kanban_pass}
+      DB_NAME: ${DB_NAME:-gamified_kanban}
+      PORT: 3000
+      NODE_ENV: production
+      FRONTEND_URL: http://localhost:8080,http://localhost:5173
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./front-end
+      args:
+        VITE_API_URL: http://localhost:3000
+    container_name: gamified-kanban-web
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

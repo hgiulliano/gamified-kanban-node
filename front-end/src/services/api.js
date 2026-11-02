@@ -2,7 +2,9 @@
 // API SERVICE — Camada de comunicação com back-end
 // ============================================
 
-const API_BASE = 'http://localhost:3000'
+// URL da API. Em desenvolvimento, o padrão cobre o backend local.
+// Em produção/deploy, defina VITE_API_URL no .env (veja .env.example).
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 async function request(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`
@@ -38,6 +40,10 @@ async function request(endpoint, options = {}) {
 // ============================================
 // USUÁRIOS
 // ============================================
+
+export async function getUsers() {
+  return request('/users')
+}
 
 export async function getUser(id) {
   return request(`/users/${id}`)

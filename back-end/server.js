@@ -3,6 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
 import dotenv from 'dotenv';
+import { pathToFileURL } from 'node:url';
+import { applyXp, XP_PER_TASK } from './lib/xp.js';
 
 // 2. Carrega variáveis de ambiente
 dotenv.config();
@@ -82,7 +84,8 @@ const serverError = (res, message = 'Erro interno do servidor') => res.status(50
 // VALIDAÇÕES REUTILIZÁVEIS
 // ============================================
 
-// Valida username: 3-50 chars, alfanumérico + underscore
+// Valida username: 3-50 chars, alfanumérico + underscore/hífen
+// (Mesma regra do formulário no front-end.)
 const validateUsername = (username) => {
   if (!username || typeof username !== 'string') {
     return 'Username é obrigatório e deve ser uma string';
@@ -91,8 +94,8 @@ const validateUsername = (username) => {
   if (trimmed.length < 3 || trimmed.length > 50) {
     return 'Username deve ter entre 3 e 50 caracteres';
   }
-  if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
-    return 'Username deve conter apenas letras, números e underscore (_)';
+  if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+    return 'Username deve conter apenas letras, números, underscore (_) e hífen (-)';
   }
   return null; // válido
 };
@@ -110,7 +113,22 @@ app.get('/health', (req, res) => {
 // ROTAS DE USUÁRIO
 // ============================================
 
-// 8. GET /users/:id - Busca usuário por ID
+// 8. GET /users - Lista todos os usuários
+// Importante: a lista não pode ser derivada das tasks, senão um usuário
+// recém-criado (sem tasks) desaparece da sidebar ao recarregar a página.
+app.get('/users', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, username, level, current_xp FROM users ORDER BY id'
+    );
+    ok(res, result.rows);
+  } catch (err) {
+    console.error('Erro GET /users:', err);
+    serverError(res);
+  }
+});
+
+// 9. GET /users/:id - Busca usuário por ID
 app.get('/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -305,35 +323,28 @@ app.patch('/tasks/:id/status', async (req, res) => {
       );
 
       if (claim.rowCount === 1) {
-        // Atualiza XP do usuário
-        const xpResult = await client.query(`
-          UPDATE users 
-          SET current_xp = current_xp + 50
-          WHERE id = $1
-          RETURNING level, current_xp
-        `, [userId]);
+        // Lê o estado atual COM lock (FOR UPDATE) e calcula o novo XP.
+        // Importante: não somar o XP duas vezes (uma no SQL, outra no JS).
+        const userResult = await client.query(
+          'SELECT level, current_xp FROM users WHERE id = $1 FOR UPDATE',
+          [userId]
+        );
 
-        let currentXp = xpResult.rows[0].current_xp;
-        let currentLevel = xpResult.rows[0].level;
-        xpGained = 50;
+        const applied = applyXp(
+          userResult.rows[0].level,
+          userResult.rows[0].current_xp,
+          XP_PER_TASK
+        );
 
-        // Verifica level up (a cada 100 XP)
-        while (currentXp >= 100) {
-          currentXp -= 100;
-          currentLevel += 1;
-          levelUp = true;
-        }
+        await client.query(
+          'UPDATE users SET level = $1, current_xp = $2 WHERE id = $3',
+          [applied.level, applied.currentXp, userId]
+        );
 
-        // Se houve level up, atualiza no banco
-        if (levelUp) {
-          await client.query(
-            'UPDATE users SET level = $1, current_xp = $2 WHERE id = $3',
-            [currentLevel, currentXp, userId]
-          );
-        }
-
-        newLevel = currentLevel;
-        newXp = currentXp;
+        xpGained = XP_PER_TASK;
+        levelUp = applied.levelUp;
+        newLevel = applied.level;
+        newXp = applied.currentXp;
       }
     }
 
@@ -451,16 +462,31 @@ app.delete('/tasks/:id', async (req, res) => {
 });
 
 // 15. Iniciar servidor
-const server = app.listen(PORT, () => {
-  console.log(`[server] Rodando em http://localhost:${PORT}`);
-});
+export { app, pool };
 
-// Mensagem clara em vez de stack trace quando a porta já está ocupada
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`[server] A porta ${PORT} já está em uso.`);
-    console.error('[server] Encerre o processo antigo ou defina outra PORT no .env');
-    process.exit(1);
-  }
-  throw err;
-});
+export function startServer(port = PORT) {
+  const server = app.listen(port, () => {
+    console.log(`[server] Rodando em http://localhost:${server.address().port}`);
+  });
+
+  // Mensagem clara em vez de stack trace quando a porta já está ocupada
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[server] A porta ${port} já está em uso.`);
+      console.error('[server] Encerre o processo antigo ou defina outra PORT no .env');
+      process.exit(1);
+    }
+    throw err;
+  });
+
+  return server;
+}
+
+// Só sobe o servidor quando executado direto (`node server.js`).
+// Os testes importam o app sem abrir porta.
+const isMain =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMain) {
+  startServer();
+}

@@ -5,6 +5,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import {
   getTasks,
+  getUsers,
   createTask,
   updateTaskStatus,
   getUser,
@@ -43,27 +44,15 @@ export function KanbanProvider({ children }) {
       setLoading(true)
       setError(null)
 
-      // Uma única chamada: /tasks já devolve username/level/current_xp (JOIN)
-      const tasksData = await getTasks()
+      // Usuários vêm da própria tabela users. Derivar das tasks fazia um
+      // usuário sem tasks desaparecer da sidebar depois de um refresh.
+      const [tasksData, usersData] = await Promise.all([getTasks(), getUsers()])
       setTasks(tasksData)
+      setUsers(usersData)
 
-      // Monta a lista de usuários a partir das tasks, sem duplicar
-      const userMap = new Map()
-      tasksData.forEach((t) => {
-        if (t.user_id && !userMap.has(t.user_id)) {
-          userMap.set(t.user_id, {
-            id: t.user_id,
-            username: t.username,
-            level: t.level,
-            current_xp: t.current_xp,
-          })
-        }
-      })
-      setUsers(Array.from(userMap.values()))
       // Mantém a seleção atual se ainda existir; senão seleciona o primeiro
-      const list = Array.from(userMap.values())
       setSelectedUserId((prev) =>
-        list.some((u) => u.id === prev) ? prev : list[0]?.id ?? null
+        usersData.some((u) => u.id === prev) ? prev : usersData[0]?.id ?? null
       )
     } catch (err) {
       setError(err.message)
