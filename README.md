@@ -1,30 +1,39 @@
 # Gamified Kanban
 
-Quadro Kanban gamificado com 4 colunas (**TODO → DOING → REVIEW → READY**).
-Ao levar uma task para **READY**, o usuário ganha **50 XP**. A cada **100 XP**, sobe um nível — o restante carrega para o próximo nível.
+Quadro Kanban gamificado com 4 colunas — **TODO → DOING → REVIEW → READY**.
+Ao levar uma task para **READY**, o usuário ganha **50 XP**. A cada **100 XP**, sobe um nível; o restante carrega para o próximo nível.
 
 Cada task paga XP **uma única vez**. Não dá para "farmar" XP movendo a mesma task de READY para REVIEW e de volta.
 
 ---
 
-## 🖼️ O que o app faz
+## Índice
 
-### Quadro principal — board filtrado pelo usuário selecionado
+- [O que o app faz](#o-que-o-app-faz)
+- [Por que este projeto existe](#por-que-este-projeto-existe)
+- [Stack](#stack)
+- [Como rodar](#como-rodar)
+- [Rotas da API](#rotas-da-api)
+- [Regras de negócio](#regras-de-negócio)
+- [Testes](#testes)
+- [Estrutura de pastas](#estrutura-de-pastas)
+- [Licença](#licença)
 
-![Board principal](docs/screenshots/01-board-principal.png)
+---
 
-- Sidebar com sessão do usuário: nível, XP, tarefas concluídas
-- O board mostra apenas as tasks do usuário selecionado
-- Drag-and-drop entre as 4 colunas
-- Cabeçalho indica de quem são as tasks visíveis
+## O que o app faz
 
-### Menu de ações (editar / excluir / mudar status)
+### Board principal
 
-![Menu aberto](docs/screenshots/02-menu-aberto.png)
+O quadro mostra apenas as tasks do usuário selecionado na sidebar. Cada coluna tem cor própria e o usuário ativo aparece no cabeçalho.
 
-- Botão "⋮" em cada task
-- Menu renderizado em portal: fica por cima dos cards, não some atrás da coluna
-- Edição de título, mudança de status e exclusão com confirmação
+![Board principal — tarefas filtradas pelo usuário selecionado](docs/screenshots/01-board-principal.png)
+
+### Menu de ações
+
+Cada task tem um botão "⋮" que abre um menu para editar o título, mudar o status ou excluir. O menu é renderizado em um portal fora da coluna, então nunca fica escondido atrás dos cards.
+
+![Menu de ações aberto sobre uma task](docs/screenshots/02-menu-aberto.png)
 
 ---
 
@@ -43,7 +52,7 @@ O app é **vibecodado com propósito**: usar essa nova categoria de ferramenta d
 
 ---
 
-## 🧱 Stack
+## Stack
 
 | Camada | Tecnologia |
 |--------|------------|
@@ -57,20 +66,17 @@ O app é **vibecodado com propósito**: usar essa nova categoria de ferramenta d
 
 ---
 
-## ▶️ Como rodar
+## Como rodar
 
 ### Com Docker Compose (recomendado)
 
 ```bash
-# 1. Clone o repo
 git clone https://github.com/hgiulliano/gamified-kanban-node.git
 cd gamified-kanban-node
 
-# 2. Copie os exemplos de variáveis de ambiente
 cp back-end/.env.example back-end/.env
 cp front-end/.env.example front-end/.env
 
-# 3. Suba tudo
 docker compose up --build
 ```
 
@@ -101,7 +107,7 @@ npm run dev       # :5173
 
 ---
 
-## 📡 Rotas da API
+## Rotas da API
 
 | Método | Caminho | Descrição |
 |--------|---------|-----------|
@@ -117,7 +123,7 @@ npm run dev       # :5173
 
 ---
 
-## ⚡ Regras de negócio
+## Regras de negócio
 
 - **Colunas**: `TODO`, `DOING`, `REVIEW`, `READY`
 - **XP**: `READY` = +50 XP. Cada 100 XP = nível +1. O que sobra continua para o próximo nível
@@ -128,7 +134,7 @@ npm run dev       # :5173
 
 ---
 
-## 🧪 Testes
+## Testes
 
 ```bash
 # Back-end (node:test — regras de XP + API de ponta a ponta)
@@ -148,7 +154,7 @@ npm run lint
 
 ---
 
-## 📁 Estrutura de pastas
+## Estrutura de pastas
 
 ```
 .
