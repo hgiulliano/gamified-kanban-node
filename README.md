@@ -1,9 +1,9 @@
 # Gamified Kanban
 
-Quadro Kanban gamificado com 4 colunas — **TODO → DOING → REVIEW → READY**.
-Ao levar uma task para **READY**, o usuário ganha **50 XP**. A cada **100 XP**, sobe um nível; o restante carrega para o próximo nível.
+Quadro Kanban gamificado com 4 colunas: **TODO → DOING → REVIEW → READY**.
+Quando uma task chega em **READY**, o usuário ganha **50 XP**. A cada **100 XP** sobe um nível, e o que sobrar passa pro próximo.
 
-Cada task paga XP **uma única vez**. Não dá para "farmar" XP movendo a mesma task de READY para REVIEW e de volta.
+Cada task paga XP **uma vez só**. Não dá pra farmar XP movendo a mesma task de READY pra REVIEW e de volta.
 
 ---
 
@@ -15,6 +15,7 @@ Cada task paga XP **uma única vez**. Não dá para "farmar" XP movendo a mesma 
 - [Como rodar](#como-rodar)
 - [Rotas da API](#rotas-da-api)
 - [Regras de negócio](#regras-de-negócio)
+- [Limitações conhecidas](#limitações-conhecidas)
 - [Testes](#testes)
 - [Estrutura de pastas](#estrutura-de-pastas)
 - [Licença](#licença)
@@ -23,35 +24,25 @@ Cada task paga XP **uma única vez**. Não dá para "farmar" XP movendo a mesma 
 
 ## O que o app faz
 
-O quadro mostra apenas as tasks do usuário selecionado na sidebar. Cada coluna tem cor própria e o usuário ativo aparece no cabeçalho.
+O quadro mostra só as tasks do usuário selecionado na sidebar. Cada coluna tem uma cor e o usuário ativo aparece no cabeçalho.
 
-Cada task tem um botão "⋮" que abre um menu para editar o título, mudar o status ou excluir. O menu é renderizado em um portal fora da coluna, então nunca fica escondido atrás dos cards.
+Cada task tem um botão "⋮" com um menu pra editar o título, mudar o status ou excluir. O menu é renderizado num portal fora da coluna, então não fica escondido atrás dos cards.
 
-<div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin:24px 0;">
-  <div style="max-width:48%;">
-    <img src="docs/screenshots/01-board-principal.png" alt="Board principal" style="width:100%; border-radius:8px; border:1px solid #e2e8f0;" />
-    <p style="text-align:center; font-size:0.9rem; color:#64748b; margin-top:8px;">Board principal — tarefas filtradas pelo usuário selecionado</p>
-  </div>
-  <div style="max-width:48%;">
-    <img src="docs/screenshots/02-menu-aberto.png" alt="Menu de ações" style="width:100%; border-radius:8px; border:1px solid #e2e8f0;" />
-    <p style="text-align:center; font-size:0.9rem; color:#64748b; margin-top:8px;">Menu de ações aberto sobre uma task</p>
-  </div>
-</div>
+| Board principal | Menu de ações |
+|---|---|
+| <img src="docs/screenshots/01-board-principal.png" width="400"> | <img src="docs/screenshots/02-menu-aberto.png" width="400"> |
 
 ---
 
 ## Por que este projeto existe
 
-Este app foi construído com apoio de IA (OpenCode) como um exercício prático de **aprender a usar ferramentas de IA como revisor de código e intermediário entre ideia e implementação**, no contexto do mercado de trabalho.
+Fiz esse app com ajuda de IA (OpenCode) pra aprender a usar esse tipo de ferramenta no dia a dia de desenvolvimento: descrever o que eu quero, revisar o que ela devolve e testar de verdade no navegador. O objetivo não era só ter o app pronto, era treinar essa revisão.
 
-A ideia não era apenas ter um app pronto, mas entender como:
+Alguns casos que aconteceram no caminho:
 
-- Descrever requisitos para uma IA de forma que o resultado funcione;
-- Revisar o código gerado (bugs de render, cache do Vite, fusos horários no banco, race conditions de XP);
-- Pedir pequenos PRs para a IA, revisar o diff e testar no navegador real;
-- Conectar front-end, back-end e banco de dados com responsabilidade.
-
-O app é **vibecodado com propósito**: usar essa nova categoria de ferramenta de forma crítica e consciente.
+- **XP farmável:** na primeira versão, a task dava XP toda vez que entrava em READY. Testando no navegador eu vi que dava pra mover a mesma task de READY pra REVIEW e voltar pra READY e ganhar XP de novo. A correção foi a coluna `xp_awarded` (migration 003): a task só paga uma vez, e o XP não é tirado se ela sair de READY.
+- **Menu escondido atrás dos cards:** o menu do "⋮" abria por baixo dos cards da coluna. Notei isso usando o app mesmo. A solução foi renderizar o menu num portal, fora da coluna.
+- **Datas com 3 horas de diferença:** a coluna `created_at` era `TIMESTAMP` sem fuso, e a API devolvia datas no futuro, então na tela aparecia "-1d atrás". Mudei pra `TIMESTAMPTZ` (migration 002) e coloquei teste nos helpers de data do front.
 
 ---
 
@@ -63,13 +54,19 @@ O app é **vibecodado com propósito**: usar essa nova categoria de ferramenta d
 | Front-end | React 19 + Vite + `@dnd-kit` |
 | Banco | PostgreSQL 15 (Docker) |
 | Testes | `node:test` (back) + Vitest (front) |
-| Estilização | CSS puro (IBM Plex, design system com variáveis) |
+| Estilização | CSS puro (IBM Plex, variáveis de CSS) |
 | Deploy | Docker Compose + Nginx |
 | CI | GitHub Actions |
 
 ---
 
 ## Como rodar
+
+### Pré-requisitos
+
+- Git
+- **Com Docker:** Docker e Docker Compose
+- **Sem Docker:** Node 22 e um PostgreSQL 15 rodando na sua máquina
 
 ### Com Docker Compose (recomendado)
 
@@ -88,24 +85,27 @@ Acessos:
 - **API**: http://localhost:3000
 - **Postgres (host)**: localhost:5433
 
-Usuários de seed criados automaticamente: `demo_ana` e `demo_bruno`.
+Os usuários `demo_ana` e `demo_bruno` são criados automaticamente.
 
 ### Sem Docker
+
+Primeiro crie o banco no seu Postgres e rode o `back-end/init.sql` nele (cria as tabelas).
+Depois ajuste no `back-end/.env` as variáveis de conexão: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` e `DB_NAME`.
 
 ```bash
 # Back-end
 cd back-end
-cp .env.example .env
+cp .env.example .env   # ajuste DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
 npm ci
-npm run migrate   # aplica migrations no Postgres
-npm run seed      # dados de exemplo (opcional)
-npm run dev       # :3000
+npm run migrate        # aplica as migrations pendentes
+npm run seed           # dados de exemplo (opcional)
+npm run dev            # :3000
 
-# Front-end (novo terminal)
+# Front-end (em outro terminal)
 cd front-end
 cp .env.example .env
 npm ci
-npm run dev       # :5173
+npm run dev            # :5173
 ```
 
 ---
@@ -115,43 +115,53 @@ npm run dev       # :5173
 | Método | Caminho | Descrição |
 |--------|---------|-----------|
 | `GET` | `/health` | Healthcheck |
-| `GET` | `/users` | Lista todos os usuários (nível, XP) |
+| `GET` | `/users` | Lista os usuários (nível, XP) |
 | `GET` | `/users/:id` | Usuário por ID |
-| `POST` | `/users` | Cria usuário (3–50 chars, alfanumérico + `_`/`-`) |
-| `GET` | `/tasks` | Lista todas as tasks com dados do usuário |
+| `POST` | `/users` | Cria usuário (3 a 50 caracteres, letras, números, `_` ou `-`) |
+| `GET` | `/tasks` | Lista todas as tasks, com os dados do usuário |
 | `POST` | `/tasks` | Cria task |
-| `PATCH` | `/tasks/:id` | Edita título |
-| `PATCH` | `/tasks/:id/status` | Muda status + concede XP se for `READY` (uma vez) |
-| `DELETE` | `/tasks/:id` | Exclui task |
+| `PATCH` | `/tasks/:id` | Edita o título |
+| `PATCH` | `/tasks/:id/status` | Muda o status (`TODO`, `DOING`, `REVIEW` ou `READY`) e concede XP ao ir pra `READY`, uma vez só |
+| `DELETE` | `/tasks/:id` | Exclui a task |
+
+Obs.: `/tasks` devolve as tasks de todos os usuários. O filtro por usuário é feito no front-end (`KanbanContext.jsx`).
 
 ---
 
 ## Regras de negócio
 
-- **Colunas**: `TODO`, `DOING`, `REVIEW`, `READY`
-- **XP**: `READY` = +50 XP. Cada 100 XP = nível +1. O que sobra continua para o próximo nível
-- **XP idempotente**: a coluna `tasks.xp_awarded` impede pagar duas vezes pela mesma task
-- **Datas**: `created_at` armazena `TIMESTAMPTZ` (UTC). Nada de "-1d atrás" por fuso horário
-- **Board**: mostra apenas as tasks do usuário selecionado na sidebar
-- **UI**: sem emojis, fonte IBM Plex, cores padronizadas, responsivo
+- **Colunas**: `TODO`, `DOING`, `REVIEW`, `READY`.
+- **XP**: `READY` dá +50 XP. Cada 100 XP é +1 nível, e o resto continua pro próximo.
+- **XP só uma vez**: a coluna `tasks.xp_awarded` impede de pagar duas vezes pela mesma task.
+- **Tirar de READY não tira o XP**: se a task sair de READY, o XP já ganho fica.
+- **Race condition**: a mudança de status roda numa transação. O `UPDATE ... WHERE xp_awarded = FALSE` só dá certo pra uma requisição, e o usuário é lido com `FOR UPDATE` antes de somar o XP. Assim duas requisições ao mesmo tempo não pagam duas vezes.
+- **Datas**: `created_at` é `TIMESTAMPTZ` (UTC), pra não aparecer "criada há -1 dia" por causa de fuso.
+- **Board**: mostra só as tasks do usuário selecionado na sidebar.
+- **UI**: sem emojis, fonte IBM Plex, cores padronizadas, responsiva.
+
+---
+
+## Limitações conhecidas
+
+- Não tem autenticação. O "usuário" é só quem está selecionado na sidebar.
+- Os testes do front cobrem só os helpers de data. A interface em si não tem teste automatizado.
 
 ---
 
 ## Testes
 
 ```bash
-# Back-end (node:test — regras de XP + API de ponta a ponta)
+# Back-end (node:test: regras de XP + API de ponta a ponta)
 cd back-end
 npm test
 
-# Front-end (Vitest — helpers de data)
+# Front-end (Vitest: helpers de data)
 cd front-end
 npm test
 
-# Verificar compilação
+# Build e lint (rodar dentro de front-end)
+cd front-end
 npm run build
-
-# Lint
 npm run lint
 ```
 
@@ -162,9 +172,9 @@ npm run lint
 ```
 .
 ├── back-end/
-│   ├── lib/xp.js            # regras de XP e level up (testável isoladamente)
+│   ├── lib/xp.js            # regras de XP e level up (testável isolado)
 │   ├── server.js            # Express + rotas + Pool
-│   ├── scripts/migrate.js   # aplica migrations SQL (npm run migrate)
+│   ├── scripts/migrate.js   # aplica as migrations SQL (npm run migrate)
 │   ├── scripts/seed.js      # dados de demonstração (npm run seed)
 │   ├── migrations/          # SQL versionado
 │   ├── test/                # testes de integração
@@ -176,7 +186,7 @@ npm run lint
 │   │   ├── context/KanbanContext.jsx   # estado global + usuário selecionado
 │   │   ├── components/                 # Board, Column, TaskCard, TaskMenu...
 │   │   ├── services/api.js             # camada de fetch
-│   │   └── utils/date.js               # datas relativas (testável)
+│   │   ├── utils/date.js               # datas relativas (testável)
 │   │   ├── App.jsx
 │   │   ├── App.css
 │   │   └── index.css
@@ -186,7 +196,7 @@ npm run lint
 │   └── vite.config.js
 ├── docs/screenshots/          # imagens do README
 ├── docker-compose.yml         # sobe db + api + web
-├── .github/workflows/ci.yml   # lint + testes + build em cada push
+├── .github/workflows/ci.yml   # lint + testes + build a cada push
 ├── LICENSE (MIT)
 └── README.md
 ```
@@ -195,8 +205,8 @@ npm run lint
 
 ## Licença
 
-MIT — sinta-se livre para usar, estudar e adaptar.
+MIT. Pode usar, estudar e adaptar.
 
 ---
 
-Feito com OpenCode + Node + React + PostgreSQL, em português do Brasil.
+Feito com OpenCode, Node, React e PostgreSQL.
