@@ -205,7 +205,7 @@ npm run lint
 
 ## Licença
 
-MIT. Pode usar, estudar e adaptar.
+[MIT](LICENSE). Pode usar, estudar e adaptar, sinta-se livre por aqui.
 
 ---
 
