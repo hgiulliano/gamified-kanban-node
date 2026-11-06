@@ -209,4 +209,13 @@ MIT. Pode usar, estudar e adaptar.
 
 ---
 
+<div align="center">
+
+Made by [@hgiulliano](https://github.com/hgiulliano) using AI tools.
+
+</div>
+
+
+---
+
 Feito com OpenCode, Node, React e PostgreSQL.
