@@ -211,7 +211,7 @@ npm run lint
 
 <div align="center">
 
-Feito por [@hgiulliano](https://github.com/hgiulliano) utilizando OpenCode, Node, React e PostgreSQL..
+Feito por [@hgiulliano](https://github.com/hgiulliano) utilizando OpenCode, Node, React e PostgreSQL.
 
 </div>
 
